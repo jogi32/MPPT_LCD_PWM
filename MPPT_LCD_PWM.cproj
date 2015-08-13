@@ -79,6 +79,7 @@
   <avrgcc.compiler.symbols.DefSymbols>
     <ListValues>
       <Value>DEBUG</Value>
+      <Value>F_CPU=16000000</Value>
     </ListValues>
   </avrgcc.compiler.symbols.DefSymbols>
   <avrgcc.compiler.optimization.level>Optimize (-O1)</avrgcc.compiler.optimization.level>
@@ -96,6 +97,12 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="lcd_displ.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="lcd_displ.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="MPPT_LCD_PWM.c">
       <SubType>compile</SubType>
     </Compile>
