@@ -5,6 +5,8 @@
  *  Author: TomaszSzafrański
  */ 
 
+//TODO: define MACRO for TURN ON/OFF PIN and replace code
+
 #include "lcd_displ.h"
 
 #include <avr/io.h>
@@ -41,7 +43,10 @@
 #define NUM_FOR_MES 10
 
 //Define sections for IN/OUT pin
-#define PWM_BOOST (1<<PB3)
+#define PWM_BOOST		(1<<PB3)
+#define SOLAR_RELAY		(1<<PD2)
+#define BATERRY_RELAY	(1<<PD3)
+#define LOAD_RELAY		(1<<PD4)
 
 //Other definitions and declarations
 void ADC_init();
@@ -159,17 +164,23 @@ void PWM_init()
 }
 
 //Set initial status of used PIN
-//TODO: CHECK AND SET THIS PIN
+//TODO: DEFINE THIS PIN
 void START_init()
-{
-	DDRC	|= _BV(PC7);
-	PORTC	|= _BV(PC7);
-	DDRC	|= _BV(PC6);
-	PORTC	|= _BV(PC6);
-	DDRC	|= _BV(PC5);
-	PORTC	|= _BV(PC5);
-	DDRC	|= _BV(PC4);
-	PORTC	|= _BV(PC4);	
-	DDRD	|= (1<<PD2);	//PV enable 
-	PORTD	&= ~(1<<PD2);
+{	
+	DDRB	|= PWM_BOOST;	//MOSFET enable
+	//PORTB	&= ~PWM_BOOST;
+	PORTB	|= PWM_BOOST;	//MOSFET disable
+
+	DDRD	|= SOLAR_RELAY;	//PV enable 
+	//PORTD	&= ~SOLAR_RELAY;
+	PORTD	|= SOLAR_RELAY;	//PV disable 
+	
+	DDRD	|= BATERRY_RELAY;	//Battery enable
+	//PORTD	&= ~BATERRY_RELAY;
+	PORTD	|= BATERRY_RELAY;	//Battery disable 
+	
+	
+	DDRD	|= LOAD_RELAY;	//Load enable
+	//PORTD	&= ~LOAD_RELAY;
+	PORTD	|= LOAD_RELAY;	//Battery disable 
 }
