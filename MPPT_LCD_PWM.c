@@ -49,18 +49,22 @@
 #define LOAD_RELAY		(1<<PD4)
 
 //Other definitions and declarations
+void ADC_ACS712_Calib();
 void ADC_init();
 void ADC_mes();
 void ADC_RUNTIME(uint32_t* MES);
 void Display_I(uint16_t num);
 void Display_P(uint16_t num);
 void Hello();
+void Mes_V();
+void Mes_I();
+void Mes_P();
 void PWM_init();
 void START_init();
 
 //Other definitions and declarations for global variable
 uint16_t V = 0, I = 0, P = 0;
-uint32_t Mes_tmp = 0;
+uint32_t Mes_tmp = 0, I_flor = 0;
 uint16_t dec = 0, frac = 0;
 char bufor[16];
 
@@ -74,16 +78,31 @@ int main(void)
 	START_init();
 	ADC_init();
 	//Hello();
+	ADC_ACS712_Calib();
+
+	PORTD	&= ~SOLAR_RELAY;
+	PWM_init();
 	
-	
+    while(1)
+    {
+        //TODO:: Please write your application code 
+		lcd_home();
+		lcd_clear();
+		Mes_V();
+		Mes_I();
+		Mes_P();
+		
+		_delay_ms(100);			//TODO: remove or redesign this part later
+    }
+}
+
+void ADC_ACS712_Calib()
+{
 	//calibration of I mes
-	//PORTD	&= ~SOLAR_RELAY; 
-	
 	ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 2);
 	_delay_ms(100);
 	
 	uint8_t i = 0;
-	uint32_t I_flor = 0;
 	for (i = 0; i < NUM_FOR_MES; i++)
 	{
 		ADC_RUNTIME(&Mes_tmp);
@@ -98,64 +117,6 @@ int main(void)
 	lcd_swrite("ADC 0: "); lcd_iwrite(I_flor);
 	
 	_delay_ms(2000);
-	
-	PORTD	&= ~SOLAR_RELAY;
-	PWM_init();
-	
-    while(1)
-    {
-        //TODO:: Please write your application code 
-		lcd_home();
-		lcd_clear();
-		ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 0);
-		lcd_home();
-		ADC_RUNTIME(&Mes_tmp);
-		Mes_tmp = Mes_tmp * 139 / 100;	//resistor divider scale 17.7 + 45.5 / 45.5
-		dec = Mes_tmp * 5 / 1023;
-		frac = Mes_tmp - dec * 1023 / 5;
-		frac = frac * 5 / 10;
-		
-		if (frac < 10)
-		{
-			lcd_swrite("V="); lcd_iwrite(dec); lcd_swrite(".0"); lcd_iwrite(frac);
-		} 
-		else
-		{
-			lcd_swrite("V="); lcd_iwrite(dec); lcd_swrite("."); lcd_iwrite(frac);
-		}
-		
-		V = dec * 100 + frac;
-		
-		ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 2);
-		ADC_RUNTIME(&Mes_tmp);
-		
-		if (Mes_tmp <= I_flor) //bias for eliminate of minus mA
-		{
-			Mes_tmp = I_flor;
-		}
-		
-		Mes_tmp = (Mes_tmp-I_flor)*Factor;
-		Mes_tmp = Mes_tmp/27;
-		
-		if (Mes_tmp <= 2) //bias for eliminate of minus mA
-		{
-			I = 0;
-		}
-		else
-		{
-			I = Mes_tmp;
-		}
-		lcd_gotoxy(7,0);
-		Display_I(I);
-		
-		Mes_tmp = V * I; 
-		Mes_tmp = Mes_tmp / 100;
-		P = Mes_tmp;
-		lcd_gotoxy(0,1);
-		Display_P(P); 
-		
-		_delay_ms(100);			//TODO: remove or redesign this part later
-    }
 }
 
 void ADC_init()
@@ -197,6 +158,61 @@ void ADC_RUNTIME(uint32_t* MES)
 		*MES += ADC;
 	}
 	*MES /= NUM_FOR_MES;
+}
+
+void Mes_V()
+{
+	ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 0);
+	ADC_RUNTIME(&Mes_tmp);
+	Mes_tmp = Mes_tmp * 139 / 100;	//resistor divider scale 17.7 + 45.5 / 45.5
+	dec = Mes_tmp * 5 / 1023;
+	frac = Mes_tmp - dec * 1023 / 5;
+	frac = frac * 5 / 10;
+	
+	if (frac < 10)
+	{
+		lcd_swrite("V="); lcd_iwrite(dec); lcd_swrite(".0"); lcd_iwrite(frac);
+	} 
+	else
+	{
+		lcd_swrite("V="); lcd_iwrite(dec); lcd_swrite("."); lcd_iwrite(frac);
+	}
+	
+	V = dec * 100 + frac;
+}
+
+void Mes_I()
+{
+	ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 2);
+	ADC_RUNTIME(&Mes_tmp);
+
+	if (Mes_tmp <= I_flor) //bias for eliminate of minus mA
+	{
+		Mes_tmp = I_flor;
+	}
+
+	Mes_tmp = (Mes_tmp-I_flor)*Factor;
+	Mes_tmp = Mes_tmp/27;
+
+	if (Mes_tmp <= 2) //bias for eliminate of minus mA
+	{
+		I = 0;
+	}
+	else
+	{
+		I = Mes_tmp;
+	}
+	lcd_gotoxy(7,0);
+	Display_I(I);
+}
+
+void Mes_P()
+{
+	Mes_tmp = V * I;
+	Mes_tmp = Mes_tmp / 100;
+	P = Mes_tmp;
+	lcd_gotoxy(0,1);
+	Display_P(P);	
 }
 
 void Display_I(uint16_t Itemp)
