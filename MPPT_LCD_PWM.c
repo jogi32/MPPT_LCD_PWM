@@ -86,8 +86,8 @@ int main(void)
     while(1)
     {
         //TODO:: Please write your application code 
-		lcd_home();
 		lcd_clear();
+		lcd_home();
 		Mes_V();
 		Mes_I();
 		Mes_P();
@@ -188,7 +188,7 @@ void Mes_I()
 
 	if (Mes_tmp <= I_flor) //bias for eliminate of minus mA
 	{
-		Mes_tmp = I_flor;
+		I_flor = Mes_tmp;
 	}
 
 	Mes_tmp = (Mes_tmp-I_flor)*Factor;
