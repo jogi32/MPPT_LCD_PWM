@@ -164,7 +164,7 @@ void Mes_V()
 {
 	ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 0);
 	ADC_RUNTIME(&Mes_tmp);
-	Mes_tmp = Mes_tmp * 139 / 100;	//resistor divider scale 17.7 + 45.5 / 45.5
+	Mes_tmp = Mes_tmp * 161 / 100;	//resistor divider scale 7,2 + 11,8 / 11,8
 	dec = Mes_tmp * 5 / 1023;
 	frac = Mes_tmp - dec * 1023 / 5;
 	frac = frac * 5 / 10;
