@@ -63,7 +63,7 @@ void PWM_init();
 void START_init();
 
 //Other definitions and declarations for global variable
-uint16_t V = 0, I = 0, P = 0;
+uint16_t V = 0, Vp = 0, I = 0, P = 0, Pp = 0, Pmax = 0;
 uint32_t Mes_tmp = 0, I_flor = 0;
 uint16_t dec = 0, frac = 0;
 char bufor[16];
@@ -80,6 +80,7 @@ int main(void)
 	//Hello();
 	ADC_ACS712_Calib();
 
+	srand(OCR0);
 	PORTD	&= ~SOLAR_RELAY;
 	PWM_init();
 	
@@ -92,6 +93,81 @@ int main(void)
 		Mes_I();
 		Mes_P();
 		
+		////////////////
+		//MPPT
+		///////////////
+		if ((P - Pp) >= 50 )
+		{
+			if ((P - Pmax) >= 0)
+			{
+				if (P > Pp)
+				{
+					
+				}if ((V - Vp) > 5)
+				{
+					OCR0 -= 3;
+				}
+				else if ((V - Vp) < -5)
+				{
+					OCR0 += 3;
+				}
+				else
+				{
+					if ((V - Vp) > 5)
+					{
+						OCR0 += 3;
+					}
+					else if ((V - Vp) < -5)
+					{
+						OCR0 -= 3;
+					}
+				}
+			} 
+			else
+			{
+				if (P > Pp)
+				{
+					
+				}if ((V - Vp) > 5)
+				{
+					OCR0 += 3;
+				}
+				else if ((V - Vp) < -5)
+				{
+					OCR0 -= 3;
+				}
+				else
+				{
+					if ((V - Vp) > 5)
+					{
+						OCR0 -= 3;
+					}
+					else if ((V - Vp) < -5)
+					{
+						OCR0 += 3;
+					}
+				}	
+			}
+			
+		}		
+		
+		if (P >= Pmax)
+		{
+			Pmax = P;
+		}
+		Vp = V;
+		Pp = P;
+		
+		
+		//////////////////////////////////////////////////////////////////////////
+		//ZABEZPIECZENIE PRZED ZWARCIEM
+		/////////////////////////////////////////////////////////////////////////
+		if ((OCR0 <= 15) || (OCR0 >= 245))
+		{
+			OCR0 = rand()%190 + 50;
+		} 
+		
+		lcd_swrite(" OCR "); lcd_iwrite(OCR0);
 		_delay_ms(100);			//TODO: remove or redesign this part later
     }
 }
