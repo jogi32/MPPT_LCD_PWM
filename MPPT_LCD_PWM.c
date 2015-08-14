@@ -6,6 +6,7 @@
  */ 
 
 //TODO: define MACRO for TURN ON/OFF PIN and replace code
+//TODO: VOltage and I are not correctly measure or/and display, this need to be changed fast
 
 #include "lcd_displ.h"
 
@@ -40,7 +41,7 @@
 #define ADC7			(1<<MUX2) |(1<<MUX1) | (1<<MUX0)
 
 #define GLUE(x, y) x##y
-#define NUM_FOR_MES 10
+#define NUM_FOR_MES 100
 
 //Define sections for IN/OUT pin
 #define PWM_BOOST		(1<<PB3)
