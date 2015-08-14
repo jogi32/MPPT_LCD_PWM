@@ -51,31 +51,110 @@
 //Other definitions and declarations
 void ADC_init();
 void ADC_mes();
-void ADC_RUNTIME(uint16_t* MES);
-void Display_I(uint16_t* num);
-void Display_P(uint16_t* num);
+void ADC_RUNTIME(uint32_t* MES);
+void Display_I(uint16_t num);
+void Display_P(uint16_t num);
 void Hello();
 void PWM_init();
 void START_init();
 
 //Other definitions and declarations for global variable
-
+uint16_t V = 0, I = 0, P = 0;
+uint32_t Mes_tmp = 0;
+uint16_t dec = 0, frac = 0;
+char bufor[16];
 
 //Const sections
-uint16_t const Factor = 264; //0.00488/ 0.185 = 264;    //5/1024 = 0.00488  // Sensitivity = 185mV
+uint16_t const Factor = 264; //(0.00488/ 0.185)*10000 = 264;    //5/1024 = 0.00488  // Sensitivity = 185mV
 
 /* MAIN FUNCTION */
 int main(void)
 {
 	lcd_init();
+	START_init();
 	ADC_init();
-	Hello();
+	//Hello();
+	
+	
+	//calibration of I mes
+	//PORTD	&= ~SOLAR_RELAY; 
+	
+	ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 2);
+	_delay_ms(100);
+	
+	uint8_t i = 0;
+	uint32_t I_flor = 0;
+	for (i = 0; i < NUM_FOR_MES; i++)
+	{
+		ADC_RUNTIME(&Mes_tmp);
+		I_flor = I_flor + Mes_tmp;
+	}
+	lcd_clear();
+	lcd_home();
+	lcd_swrite("I mes cal");
+	lcd_gotoxy(0,1);
+	_delay_ms(100);
+	I_flor = I_flor / NUM_FOR_MES;
+	lcd_swrite("ADC 0: "); lcd_iwrite(I_flor);
+	
+	_delay_ms(2000);
+	
+	PORTD	&= ~SOLAR_RELAY;
+	PWM_init();
 	
     while(1)
     {
         //TODO:: Please write your application code 
+		lcd_home();
+		lcd_clear();
+		ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 0);
+		lcd_home();
+		ADC_RUNTIME(&Mes_tmp);
+		Mes_tmp = Mes_tmp * 139 / 100;	//resistor divider scale 17.7 + 45.5 / 45.5
+		dec = Mes_tmp * 5 / 1023;
+		frac = Mes_tmp - dec * 1023 / 5;
+		frac = frac * 5 / 10;
 		
-		_delay_ms(100);		//TODO: remove or redesign this part later
+		if (frac < 10)
+		{
+			lcd_swrite("V="); lcd_iwrite(dec); lcd_swrite(".0"); lcd_iwrite(frac);
+		} 
+		else
+		{
+			lcd_swrite("V="); lcd_iwrite(dec); lcd_swrite("."); lcd_iwrite(frac);
+		}
+		
+		V = dec * 100 + frac;
+		
+		ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 2);
+		ADC_RUNTIME(&Mes_tmp);
+		
+		if (Mes_tmp <= I_flor) //bias for eliminate of minus mA
+		{
+			Mes_tmp = I_flor;
+		}
+		
+		Mes_tmp = (Mes_tmp-I_flor)*Factor;
+		Mes_tmp = Mes_tmp/27;
+		
+		if (Mes_tmp <= 2) //bias for eliminate of minus mA
+		{
+			I = 0;
+		}
+		else
+		{
+			I = Mes_tmp;
+		}
+		lcd_gotoxy(7,0);
+		Display_I(I);
+		
+		Mes_tmp = V * I; 
+		Mes_tmp = Mes_tmp / 100;
+		P = Mes_tmp;
+		lcd_gotoxy(0,1);
+		Display_P(P); 
+		
+		_delay_ms(100);			//TODO: remove or redesign this part later
     }
 }
 
@@ -108,22 +187,34 @@ void ADC_mes()
 	while(ADCSRA & (1<<ADSC));	//wait for end of conversion
 }
 
-void Display_I(uint16_t* Itemp)
+void ADC_RUNTIME(uint32_t* MES)
 {
-	char char_I[] = "I=0.000A";
-	char_I[2] = (*Itemp)/1000 + 48;
-	char_I[4] = ((*Itemp)/100)%10 + 48;
-	char_I[5] = ((*Itemp)/10)%10 + 48;
-	char_I[6] = ((*Itemp))%10 + 48;
+	uint8_t i = 0;
+	*MES = 0;
+	for (i = 0; i<NUM_FOR_MES; i++)
+	{
+		ADC_mes();
+		*MES += ADC;
+	}
+	*MES /= NUM_FOR_MES;
+}
+
+void Display_I(uint16_t Itemp)
+{
+	char char_I[] = " I=0.000A";
+	char_I[3] = (Itemp)/1000 + 48;
+	char_I[5] = (Itemp/100)%10 + 48;
+	char_I[6] = (Itemp/10)%10 + 48;
+	char_I[7] = (Itemp)%10 + 48;
 	lcd_swrite(char_I);
 }
 
-void Display_P(uint16_t* P)
+void Display_P(uint16_t Ptemp) 
 {
-	char char_P[] = " P=0.00W";
-	char_P[3] = (uint16_t)((*P)/100) + 48;
-	char_P[5] = (uint16_t)((*P)/10)%10 + 48;
-	char_P[6] = (uint16_t)((*P))%10 + 48;
+	char char_P[] = "P=0.00W";
+	char_P[2] = (Ptemp)/1000 + 48;
+	char_P[4] = (Ptemp/100)%10 + 48;
+	char_P[5] = (Ptemp/10)%10 + 48;
 	lcd_swrite(char_P);
 }
 
@@ -158,7 +249,7 @@ void PWM_init()
 	TCCR0	|= (1<<WGM00);
 	TCCR0	|= (1<<COM01) ;			//Clear OC0A/OC0B on Compare Match, set OC0A/OC0B at BOTTOM
 	TCCR0	|= (1<<CS01) | (1<<CS00);              // Preksaler = 64 fpwm = 976,5 Hz
-	OCR0 = 40;						//Value of compared variable
+	OCR0 = 137;						//Value of compared variable
 	TIMSK	|= (1<<TOIE0);			//TODO: set descriptions
 	TIFR	|= (1<<OCF0);			//TODO: set descriptions
 }
