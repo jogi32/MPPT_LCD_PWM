@@ -26,10 +26,10 @@
 #define ADCIN_BAT PC2
 #define ADCIN_I PC3
 //For future development of solar tracking code
-//#define ADCINBOT PC2
-//#define ADCINTOP PC3
-//#define ADCINBOT PC2
-//#define ADCINTOP PC3
+#define ADCINBOT PC2
+#define ADCINTOP PC3
+#define ADCINLEFT PC2
+#define ADCINRIGHT PC3
 
 #define ADC0			(0<<MUX2) |(0<<MUX1) | (0<<MUX0)
 #define ADC1			(0<<MUX2) |(0<<MUX1) | (1<<MUX0)
@@ -50,6 +50,17 @@
 #define BATERRY_RELAY	(1<<PD3)
 #define LOAD_RELAY		(1<<PD4)
 
+//TODO: Properly define PIN
+#define MOTORRIGHTON	PORTB |= _BV(PB5)
+#define MOTORRIGHTOFF	PORTB &= ~_BV(PB5)
+#define MOTORLEFTTON	PORTB |= _BV(PB4)
+#define MOTORLEFTTOFF	PORTB &= ~_BV(PB4)
+
+#define MOTORUPON		PORTB |= _BV(PB3)
+#define MOTORUPOFF		PORTB &= ~_BV(PB3)
+#define MOTORDOWNON		PORTB |= _BV(PB2)
+#define MOTORDOWNOFF	PORTB &= ~_BV(PB2)
+
 //Other definitions and declarations
 void ADC_ACS712_Calib();
 void ADC_init();
@@ -62,12 +73,23 @@ void Mes_P();
 void PWM_init();
 void START_init();
 void MPPT();
+void Pos_init();
+uint16_t MaxFromArray(uint8_t* array);
 
 //Other definitions and declarations for global variable
 uint32_t Mes_tmp = 0, I_flor = 0;
 
-char bufor[16];
+char buforTrack[16];
+uint8_t W[4];
+uint16_t W1;
+uint16_t W2;
+uint16_t W3;
+uint16_t W4;
+int16_t DifrX;
+int16_t DifrY;
+int16_t Difr;
 
+char bufor[16];
 float Vf = 0.0, If = 0.0, Pf = 0.0, Vfp = 0.0, Ifp = 0.0, Pfp = 0.0;
 
 //Const sections
@@ -80,25 +102,35 @@ int main(void)
 	START_init();
 	ADC_init();
 	Hello();
-	PORTD	&= ~SOLAR_RELAY;
-	PWM_init();
-	ADC_ACS712_Calib();
+	//PORTD	&= ~SOLAR_RELAY;
+	//PWM_init();
+	//ADC_ACS712_Calib();
 	OCR0 = 85;
 	srand(OCR0);
 	
-	
+	ADCSRA |= (1<<ADSC);//Bit 6 – ADSC: ADC Start Conversion (uruchomienie pojedynczej konwersji
+	while(ADCSRA & (1<<ADSC));//czeka na zakończenie konwersji
+	itoa(ADC,bufor,10);
+	lcd_swrite(bufor);
 	
     while(1)
     {
         //TODO:: Please write your application code 
 		lcd_clear();
 		lcd_home();
+		/*
 		Mes_V();
 		Mes_I();
 		Mes_P();
 		MPPT();
+		*/
 		
-		
+		////////////////////////////////////////////////////////////
+		//SOLAR TRACKER CODE
+		////////////////////////////////////////////////////////////
+		Pos_init();
+		itoa(Difr,bufor,10);
+		lcd_swrite("DIFF: ");lcd_swrite(bufor);
 		
 		
 		_delay_ms(100);			//TODO: remove or redesign this part later
@@ -299,4 +331,79 @@ void MPPT()
 	}
 
 	lcd_swrite(" OCR "); lcd_iwrite(OCR0);	
+}
+
+void Pos_init()
+{
+	ADMUX = (1<<REFS1) | (1<<REFS0) | GLUE(ADC, 0);
+	ADC_mes();
+	W1 = ADC;
+	W[0] = W1 / 4;
+	ADMUX = (1<<REFS1) | (1<<REFS0) | GLUE(ADC, 1);
+	ADC_mes();
+	W2 = ADC;
+	W[1] = W2 / 4;
+	ADMUX = (1<<REFS1) | (1<<REFS0) | GLUE(ADC, 2);
+	ADC_mes();
+	W3 = ADC;
+	W[2] = W3 / 4;
+	ADMUX = (1<<REFS1) | (1<<REFS0) | GLUE(ADC, 3);
+	ADC_mes();
+	W4 = ADC;
+	W[3] = W4 / 4;
+	Difr = MaxFromArray(W);
+	DifrX = W1 - W2;
+	DifrY = W3 - W4;
+	
+	
+	if (fabs(DifrX) > Difr)
+	{
+		if (	DifrX > 0	)
+		{
+			MOTORRIGHTOFF;
+			MOTORLEFTTON;
+		}
+		else if (	DifrX < 0	)
+		{
+			MOTORLEFTTOFF;
+			MOTORRIGHTON;
+		}
+	}
+	else
+	{
+		MOTORRIGHTOFF;
+		MOTORLEFTTOFF;
+	}
+	
+	
+	
+	if (fabs(DifrY) > Difr)
+	{
+		if (	DifrY > 0	)
+		{
+			MOTORUPOFF;
+			MOTORDOWNON;
+		}
+		else if (	DifrY < 0	)
+		{
+			MOTORDOWNOFF;
+			MOTORUPON;
+		}
+	}
+	else
+	{
+		MOTORDOWNOFF;
+		MOTORUPOFF;
+	}
+}
+
+uint16_t MaxFromArray(uint8_t* array)
+{
+	uint8_t max = array[0];
+	for(int i = 1; i<4; i++)
+	{
+		if(array[i] > max)
+		max = array[i];
+	}
+	return max;
 }
