@@ -1,12 +1,13 @@
 /*
  * MPPT_LCD_PWM.c
  *
- * Created: 2015-07-27 18:55:17
+ * Created: 2015-05-03 16:52:41
  *  Author: TomaszSzafrański
  */ 
 
 //TODO: define MACRO for TURN ON/OFF PIN and replace code
-//TODO: VOltage and I are not correctly measure or/and display, this need to be changed fast
+//TODO: Measure of P need to be improvement, this need to more accurate
+//TODO: test code of solar tracker 
 
 #include "lcd_displ.h"
 
