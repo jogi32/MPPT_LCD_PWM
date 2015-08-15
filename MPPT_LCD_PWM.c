@@ -82,7 +82,7 @@ int main(void)
 	PORTD	&= ~SOLAR_RELAY;
 	PWM_init();
 	ADC_ACS712_Calib();
-	OCR0 = 137;
+	OCR0 = 85;
 	srand(OCR0);
 	
 	
@@ -95,6 +95,7 @@ int main(void)
 		Mes_V();
 		Mes_I();
 		Mes_P();
+		
 		
 		////////////////
 		//MPPT
