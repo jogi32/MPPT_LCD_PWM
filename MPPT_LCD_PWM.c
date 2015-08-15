@@ -61,6 +61,7 @@ void Mes_I();
 void Mes_P();
 void PWM_init();
 void START_init();
+void MPPT();
 
 //Other definitions and declarations for global variable
 uint32_t Mes_tmp = 0, I_flor = 0;
@@ -95,46 +96,11 @@ int main(void)
 		Mes_V();
 		Mes_I();
 		Mes_P();
+		MPPT();
 		
 		
-		////////////////
-		//MPPT
-		///////////////
-		if (Pf > Pfp)
-		{
-			if (Vf > Vfp)
-			{
-				OCR0 += 3;
-			} 
-			else
-			{
-				OCR0 -= 3;
-			}
-		}
-		else
-		{
-			if (Vf > Vfp)
-			{
-				OCR0 -= 3;
-			}
-			else
-			{
-				OCR0 += 3;
-			}	
-		}
 		
-		Vfp = Vf;
-		Pfp = Pf;
 		
-		//////////////////////////////////////////////////////////////////////////
-		//ZABEZPIECZENIE PRZED ZWARCIEM
-		/////////////////////////////////////////////////////////////////////////
-		if ((OCR0 <= 15) || (OCR0 >= 245))
-		{
-			OCR0 = rand()%190 + 50;
-		} 
-		
-		lcd_swrite(" OCR "); lcd_iwrite(OCR0);
 		_delay_ms(100);			//TODO: remove or redesign this part later
     }
 }
@@ -291,4 +257,46 @@ void START_init()
 	DDRD	|= LOAD_RELAY;	//Load enable
 	//PORTD	&= ~LOAD_RELAY;
 	PORTD	|= LOAD_RELAY;	//Battery disable 
+}
+
+void MPPT()
+{
+	////////////////
+	//MPPT
+	///////////////
+	if (Pf > Pfp)
+	{
+		if (Vf > Vfp)
+		{
+			OCR0 += 3;
+		}
+		else
+		{
+			OCR0 -= 3;
+		}
+	}
+	else
+	{
+		if (Vf > Vfp)
+		{
+			OCR0 -= 3;
+		}
+		else
+		{
+			OCR0 += 3;
+		}
+	}
+
+	Vfp = Vf;
+	Pfp = Pf;
+
+	//////////////////////////////////////////////////////////////////////////
+	//ZABEZPIECZENIE PRZED ZWARCIEM
+	/////////////////////////////////////////////////////////////////////////
+	if ((OCR0 <= 15) || (OCR0 >= 245))
+	{
+		OCR0 = rand()%190 + 50;
+	}
+
+	lcd_swrite(" OCR "); lcd_iwrite(OCR0);	
 }
