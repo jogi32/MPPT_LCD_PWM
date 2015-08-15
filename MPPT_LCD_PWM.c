@@ -42,6 +42,7 @@
 
 #define GLUE(x, y) x##y
 #define NUM_FOR_MES 100
+#define SOLAR_Vcc 13
 
 //Define sections for IN/OUT pin
 #define PWM_BOOST		(1<<PB3)
@@ -54,8 +55,6 @@ void ADC_ACS712_Calib();
 void ADC_init();
 void ADC_mes();
 void ADC_RUNTIME(uint32_t* MES);
-void Display_I(uint16_t num);
-void Display_P(uint16_t num);
 void Hello();
 void Mes_V();
 void Mes_I();
@@ -64,13 +63,14 @@ void PWM_init();
 void START_init();
 
 //Other definitions and declarations for global variable
-uint16_t V = 0, Vp = 0, I = 0, P = 0, Pp = 0, Pmax = 0;
 uint32_t Mes_tmp = 0, I_flor = 0;
-uint16_t dec = 0, frac = 0;
+
 char bufor[16];
 
+float Vf = 0.0, If = 0.0, Pf = 0.0, Vfp = 0.0, Ifp = 0.0, Pfp = 0.0;
+
 //Const sections
-uint16_t const Factor = 264; //(0.00488/ 0.185)*10000 = 264;    //5/1024 = 0.00488  // Sensitivity = 185mV
+float const Factor = 0.00488/ 0.185; //(0.00488/ 0.185)*10000 = 264;    //5/1024 = 0.00488  // Sensitivity = 185mV
 
 /* MAIN FUNCTION */
 int main(void)
@@ -78,12 +78,14 @@ int main(void)
 	lcd_init();
 	START_init();
 	ADC_init();
-	//Hello();
-	ADC_ACS712_Calib();
-
-	srand(OCR0);
+	Hello();
 	PORTD	&= ~SOLAR_RELAY;
 	PWM_init();
+	ADC_ACS712_Calib();
+	OCR0 = 137;
+	srand(OCR0);
+	
+	
 	
     while(1)
     {
@@ -97,68 +99,31 @@ int main(void)
 		////////////////
 		//MPPT
 		///////////////
-		if ((P - Pp) >= 50 )
+		if (Pf > Pfp)
 		{
-			if ((P - Pmax) >= 0)
+			if (Vf > Vfp)
 			{
-				if (P > Pp)
-				{
-					
-				}if ((V - Vp) > 5)
-				{
-					OCR0 -= 3;
-				}
-				else if ((V - Vp) < -5)
-				{
-					OCR0 += 3;
-				}
-				else
-				{
-					if ((V - Vp) > 5)
-					{
-						OCR0 += 3;
-					}
-					else if ((V - Vp) < -5)
-					{
-						OCR0 -= 3;
-					}
-				}
+				OCR0 += 3;
 			} 
 			else
 			{
-				if (P > Pp)
-				{
-					
-				}if ((V - Vp) > 5)
-				{
-					OCR0 += 3;
-				}
-				else if ((V - Vp) < -5)
-				{
-					OCR0 -= 3;
-				}
-				else
-				{
-					if ((V - Vp) > 5)
-					{
-						OCR0 -= 3;
-					}
-					else if ((V - Vp) < -5)
-					{
-						OCR0 += 3;
-					}
-				}	
+				OCR0 -= 3;
 			}
-			
-		}		
-		
-		if (P >= Pmax)
-		{
-			Pmax = P;
 		}
-		Vp = V;
-		Pp = P;
+		else
+		{
+			if (Vf > Vfp)
+			{
+				OCR0 -= 3;
+			}
+			else
+			{
+				OCR0 += 3;
+			}	
+		}
 		
+		Vfp = Vf;
+		Pfp = Pf;
 		
 		//////////////////////////////////////////////////////////////////////////
 		//ZABEZPIECZENIE PRZED ZWARCIEM
@@ -204,9 +169,9 @@ void ADC_init()
 	|(1<<ADPS1)
 	|(1<<ADPS2);							//ADPS2:0: ADC Prescaler Select Bits (set prescaler) preskaler= 128
 
-	ADMUX  =	 (1<<REFS1) | (1<<REFS0)	//Bit 7:6 – REFS1:0: Reference Selection Bits
+	ADMUX  =//	 (1<<REFS1) | (1<<REFS0)	//Bit 7:6 – REFS1:0: Reference Selection Bits
 											//Internal 2.56V Voltage Reference with external capacitor at AREF pin
-			//	|(0<<REFS1) | (1<<REFS0)    //External 5.00V Voltage Reference with external capacitor at AREF pin
+				 (0<<REFS1) | (1<<REFS0)    //External 5.00V Voltage Reference with external capacitor at AREF pin
 				|(1<<MUX1) | (1<<MUX0);		//Input Channel Selections (ADC3 - Pin 3 )
 	
 	DDRC &=~ (1<<PC0);            //Set input ADC
@@ -241,21 +206,10 @@ void Mes_V()
 {
 	ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 0);
 	ADC_RUNTIME(&Mes_tmp);
-	Mes_tmp = Mes_tmp * 161 / 100;	//resistor divider scale 7,2 + 11,8 / 11,8
-	dec = Mes_tmp * 5 / 1023;
-	frac = Mes_tmp - dec * 1023 / 5;
-	frac = frac * 5 / 10;
-	
-	if (frac < 10)
-	{
-		lcd_swrite("V="); lcd_iwrite(dec); lcd_swrite(".0"); lcd_iwrite(frac);
-	} 
-	else
-	{
-		lcd_swrite("V="); lcd_iwrite(dec); lcd_swrite("."); lcd_iwrite(frac);
-	}
-	
-	V = dec * 100 + frac;
+	Vf = Mes_tmp;					//resistor divider scale (7.2 + 11,8) / 7,2 
+	Vf = Vf * SOLAR_Vcc / 1023;
+	sprintf(bufor,"%.2f",Vf);
+	lcd_swrite("V="); lcd_swrite(bufor);
 }
 
 void Mes_I()
@@ -267,48 +221,17 @@ void Mes_I()
 	{
 		I_flor = Mes_tmp;
 	}
-
-	Mes_tmp = (Mes_tmp-I_flor)*Factor;
-	Mes_tmp = Mes_tmp/27;
-
-	if (Mes_tmp <= 2) //bias for eliminate of minus mA
-	{
-		I = 0;
-	}
-	else
-	{
-		I = Mes_tmp;
-	}
-	lcd_gotoxy(7,0);
-	Display_I(I);
+	If = (Mes_tmp-I_flor)*Factor;
+	sprintf(bufor,"%.3f",If);
+	lcd_swrite(" I="); lcd_swrite(bufor);
 }
 
 void Mes_P()
 {
-	Mes_tmp = V * I;
-	Mes_tmp = Mes_tmp / 100;
-	P = Mes_tmp;
+	Pf = Vf * If;
+	sprintf(bufor,"%.3f",Pf);
 	lcd_gotoxy(0,1);
-	Display_P(P);	
-}
-
-void Display_I(uint16_t Itemp)
-{
-	char char_I[] = " I=0.000A";
-	char_I[3] = (Itemp)/1000 + 48;
-	char_I[5] = (Itemp/100)%10 + 48;
-	char_I[6] = (Itemp/10)%10 + 48;
-	char_I[7] = (Itemp)%10 + 48;
-	lcd_swrite(char_I);
-}
-
-void Display_P(uint16_t Ptemp) 
-{
-	char char_P[] = "P=0.00W";
-	char_P[2] = (Ptemp)/1000 + 48;
-	char_P[4] = (Ptemp/100)%10 + 48;
-	char_P[5] = (Ptemp/10)%10 + 48;
-	lcd_swrite(char_P);
+	lcd_swrite("P="); lcd_swrite(bufor);
 }
 
 void Hello()
@@ -342,7 +265,7 @@ void PWM_init()
 	TCCR0	|= (1<<WGM00);
 	TCCR0	|= (1<<COM01) ;			//Clear OC0A/OC0B on Compare Match, set OC0A/OC0B at BOTTOM
 	TCCR0	|= (1<<CS01) | (1<<CS00);              // Preksaler = 64 fpwm = 976,5 Hz
-	OCR0 = 137;						//Value of compared variable
+	OCR0 = 245;						//Value of compared variable
 	TIMSK	|= (1<<TOIE0);			//TODO: set descriptions
 	TIFR	|= (1<<OCF0);			//TODO: set descriptions
 }
