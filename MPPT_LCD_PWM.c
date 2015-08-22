@@ -103,10 +103,10 @@ int main(void)
 	START_init();
 	ADC_init();
 	Hello();
-	//PORTD	&= ~SOLAR_RELAY;,
+	PORTD	&= ~SOLAR_RELAY;
 	PORTD	&= ~BATERRY_RELAY;
-	//PWM_init();
-	//ADC_ACS712_Calib();
+	PWM_init();
+	ADC_ACS712_Calib();
 	OCR0 = 85;
 	srand(OCR0);
 	
@@ -133,7 +133,6 @@ int main(void)
 		Pos_init();
 		itoa(Difr,bufor,10);
 		lcd_swrite("DIFF: ");lcd_swrite(bufor);
-		
 		
 		_delay_ms(100);			//TODO: remove or redesign this part later
     }
