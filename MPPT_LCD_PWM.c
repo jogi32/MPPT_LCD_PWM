@@ -76,9 +76,11 @@ void START_init();
 void MPPT();
 void Pos_init();
 uint16_t MaxFromArray(uint8_t* array);
+void Find_Max_P();
 
 //Other definitions and declarations for global variable
 uint32_t Mes_tmp = 0, I_flor = 0;
+uint8_t OCR_MAX = 0;
 
 char buforTrack[16];
 uint8_t W[4];
@@ -91,10 +93,10 @@ int16_t DifrY;
 int16_t Difr;
 
 char bufor[16];
-float Vf = 0.0, If = 0.0, Pf = 0.0, Vfp = 0.0, Ifp = 0.0, Pfp = 0.0;
+float Vf = 0.0, If = 0.0, Pf = 0.0, Vfp = 0.0, Ifp = 0.0, Pfp = 0.0, Max_P = 0.0;
 
 //Const sections
-float const Factor = 0.5 / 1024.0 / 0.185; //(0.00488/ 0.185)*10000 = 264;    //5/1024 = 0.00488  // Sensitivity = 185mV
+float const Factor = 5.0 / 1024.0 / 0.185; //(0.00488/ 0.185)*10000 = 264;    //5/1024 = 0.00488  // Sensitivity = 185mV
 
 /* MAIN FUNCTION */
 int main(void)
@@ -103,14 +105,14 @@ int main(void)
 	START_init();
 	ADC_init();
 	Hello();
-<<<<<<< HEAD
 	PORTD	&= ~SOLAR_RELAY;
 	PORTD	&= ~BATERRY_RELAY;
 	PWM_init();
 	ADC_ACS712_Calib();
-	OCR0 = 85;
 	srand(OCR0);
 	
+	Find_Max_P();
+	OCR0 = OCR_MAX;
 	/*
 	ADCSRA |= (1<<ADSC);//Bit 6 – ADSC: ADC Start Conversion (uruchomienie pojedynczej konwersji
 	while(ADCSRA & (1<<ADSC));//czeka na zakończenie konwersji
@@ -163,6 +165,9 @@ void ADC_ACS712_Calib()
 	lcd_swrite("ADC 0: "); lcd_iwrite(I_flor);
 	
 	_delay_ms(2000);
+	lcd_gotoxy(0,0);
+	lcd_clear();
+	lcd_home();
 }
 
 void ADC_init()
@@ -208,6 +213,7 @@ void ADC_RUNTIME(uint32_t* MES)
 
 void Mes_V()
 {
+	lcd_gotoxy(0,0);
 	ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 0);
 	ADC_RUNTIME(&Mes_tmp);
 	Vf = Mes_tmp;					//resistor divider scale (7.2 + 11,8) / 7,2 
@@ -218,6 +224,7 @@ void Mes_V()
 
 void Mes_I()
 {
+	lcd_gotoxy(7,0);
 	ADMUX = (0<<REFS1) | (1<<REFS0) | GLUE(ADC, 2);
 	ADC_RUNTIME(&Mes_tmp);
 
@@ -232,9 +239,9 @@ void Mes_I()
 
 void Mes_P()
 {
+	lcd_gotoxy(0,1);
 	Pf = Vf * If;
 	sprintf(bufor,"%.3f",Pf);
-	lcd_gotoxy(0,1);
 	lcd_swrite("P="); lcd_swrite(bufor);
 }
 
@@ -301,26 +308,26 @@ void MPPT()
 	////////////////
 	//MPPT
 	///////////////
-	if (Pf > Pfp)
+	if (Pf - Pfp >= 0.02)
 	{
-		if (Vf > Vfp)
+		if (Vf - Vfp >= 0.1)
 		{
-			OCR0 += 3;
+			OCR0 += 5;
 		}
-		else
+		else if (Vf - Vfp <= -0.1)
 		{
-			OCR0 -= 3;
+			OCR0 -= 5;
 		}
 	}
-	else
+	else if (Pf - Pfp <= -0.02)
 	{
-		if (Vf > Vfp)
+		if (Vf - Vfp >= 0.1)
 		{
-			OCR0 -= 3;
+			OCR0 -= 5;
 		}
-		else
+		else if (Vf - Vfp <= -0.1)
 		{
-			OCR0 += 3;
+			OCR0 += 5;
 		}
 	}
 
@@ -332,10 +339,17 @@ void MPPT()
 	/////////////////////////////////////////////////////////////////////////
 	if ((OCR0 <= 15) || (OCR0 >= 245))
 	{
-		OCR0 = rand()%190 + 50;
+		//Find_Max_P();
+		if ((OCR0 <= 50) || (OCR0 >= 210))
+		{
+			OCR0 = rand()%150 + 50;
+		}
 	}
+	
+	lcd_gotoxy(8,1);
+	lcd_swrite("OCR "); lcd_iwrite(OCR0);
 
-	lcd_swrite(" OCR "); lcd_iwrite(OCR0);	
+		
 }
 
 void Pos_init()
@@ -411,4 +425,30 @@ uint16_t MaxFromArray(uint8_t* array)
 		max = array[i];
 	}
 	return max;
+}
+
+void Find_Max_P()
+{
+	
+	OCR0 = 20;
+	_delay_ms(10);
+	while (OCR0 <= 240)
+	{
+		Mes_V();
+		Mes_I();
+		Mes_P();
+		
+		if (Pf - Max_P >= 0.01)
+		{
+			//lcd_gotoxy(0,0);
+			Max_P = Pf;
+			OCR_MAX = OCR0;
+			//lcd_swrite("MP"); lcd_iwrite(Max_P); lcd_swrite(" OC "); lcd_iwrite(OCR_MAX); 
+		}
+		OCR0++;
+	}
+	//_delay_ms(500);
+	OCR0 = OCR_MAX;
+	//lcd_swrite("MP1"); lcd_iwrite(Max_P); lcd_swrite(" OC "); lcd_iwrite(OCR_MAX); 
+	//_delay_ms(500);
 }
