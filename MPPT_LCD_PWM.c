@@ -94,7 +94,7 @@ char bufor[16];
 float Vf = 0.0, If = 0.0, Pf = 0.0, Vfp = 0.0, Ifp = 0.0, Pfp = 0.0;
 
 //Const sections
-float const Factor = 0.00488/ 0.185; //(0.00488/ 0.185)*10000 = 264;    //5/1024 = 0.00488  // Sensitivity = 185mV
+float const Factor = 0.5 / 1024.0 / 0.185; //(0.00488/ 0.185)*10000 = 264;    //5/1024 = 0.00488  // Sensitivity = 185mV
 
 /* MAIN FUNCTION */
 int main(void)
@@ -108,37 +108,35 @@ int main(void)
 	PORTD	&= ~BATERRY_RELAY;
 	PWM_init();
 	ADC_ACS712_Calib();
-=======
-	//PORTD	&= ~SOLAR_RELAY;
-	//PWM_init();
-	//ADC_ACS712_Calib();
->>>>>>> parent of de0f284... asd
 	OCR0 = 85;
 	srand(OCR0);
 	
+	/*
 	ADCSRA |= (1<<ADSC);//Bit 6 – ADSC: ADC Start Conversion (uruchomienie pojedynczej konwersji
 	while(ADCSRA & (1<<ADSC));//czeka na zakończenie konwersji
 	itoa(ADC,bufor,10);
 	lcd_swrite(bufor);
+	*/
 	
     while(1)
     {
         //TODO:: Please write your application code 
 		lcd_clear();
 		lcd_home();
-		/*
+		
 		Mes_V();
 		Mes_I();
 		Mes_P();
 		MPPT();
-		*/
 		
+		/*
 		////////////////////////////////////////////////////////////
 		//SOLAR TRACKER CODE
 		////////////////////////////////////////////////////////////
 		Pos_init();
 		itoa(Difr,bufor,10);
 		lcd_swrite("DIFF: ");lcd_swrite(bufor);
+		*/
 		
 		_delay_ms(100);			//TODO: remove or redesign this part later
     }
